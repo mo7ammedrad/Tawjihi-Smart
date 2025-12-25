@@ -1,0 +1,212 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+/* ================================
+   🎨 Educational Platform Color Variables
+   ================================ */
+:root {
+  --color-background: #f4f7fb;
+  --color-background-second: #eef2f7;
+
+  --color-text: #333333;
+  --color-heading: #000000;
+  --color-link: #007bff;
+  --color-link-hover: #0056b3;
+  --color-primary: #81d4fa;
+  --color-primary-hover: #0056b3;
+  --color-success-bg: #d4edda;
+  --color-success-text: #155724;
+  --color-success-border: #c3e6cb;
+  --color-border: #d7dce3;
+  --color-warning-bg: #fff3cd;
+  --color-warning-text: #856404;
+  --color-warning-border: #ffeeba;
+
+  /* Dark Mode */
+  --color-dark-bg: #121212;
+  --color-dark-text: #e0e0e0;
+  --color-dark-card: #1e1e1e;
+  --color-dark-link: #82b1ff;
+  --color-dark-shadow: rgba(255, 255, 255, 0.05);
+}
+
+/*FONT Face */
+
+@font-face {
+  font-family: "Amiri";
+  src: url("../public/assets/fonts/Vazirmatn-Regular.ttf");
+}
+
+/* ================================
+     🌞 Light Mode Styles
+     ================================ */
+body {
+  background-color: var(--color-background);
+  color: var(--color-text);
+  line-height: 1.6;
+  font-family: "Amiri";
+  direction: rtl;
+  overflow-x: hidden;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--color-heading);
+}
+
+a {
+  color: var(--color-link);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--color-link-hover);
+  text-decoration: underline;
+}
+
+.button-primary {
+  background-color: var(--color-primary);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+.button-primary:hover {
+  background-color: var(--color-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+}
+
+.alert-success {
+  background-color: var(--color-success-bg);
+  color: var(--color-success-text);
+  border: 1px solid var(--color-success-border);
+  padding: 10px;
+  border-radius: 5px;
+}
+
+.alert-warning {
+  background-color: var(--color-warning-bg);
+  color: var(--color-warning-text);
+  border: 1px solid var(--color-warning-border);
+  padding: 10px;
+  border-radius: 5px;
+}
+
+/* ================================
+     🌙 Dark Mode Styles
+     ================================ */
+body.dark-mode {
+  background-color: var(--color-dark-bg);
+  color: var(--color-dark-text);
+}
+
+body.dark-mode a {
+  color: var(--color-dark-link);
+}
+
+body.dark-mode .card {
+  background-color: var(--color-dark-card);
+  box-shadow: 0 2px 4px var(--color-dark-shadow);
+}
+
+body.dark-mode .button-primary {
+  background-color: var(--color-dark-link);
+  color: white;
+}
+
+/*OverLay of Modal*/
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.6);
+  z-index: 9999;
+}
+
+/* In global.css or index.css */
+@media (max-width: 767px) {
+  body {
+    overflow-x: hidden !important;
+  }
+}
+
+ul {
+  list-style: none;
+}
+
+/* الحركات البصرية للأيقونات */
+@keyframes fillPulseCart {
+  0% {
+    fill: #2563eb;
+    opacity: 0.6;
+  }
+  100% {
+    fill: #2563eb;
+    opacity: 1;
+  }
+}
+
+@keyframes fillPulseHeart {
+  0% {
+    fill: #ca4e4e;
+    opacity: 0.6;
+  }
+  100% {
+    fill: #ca4e4e;
+    opacity: 1;
+  }
+}
+
+.loading-icon-cart {
+  animation: fillPulseCart 0.8s infinite ease-in-out;
+}
+
+.loading-icon-heart {
+  animation: fillPulseHeart 0.8s infinite ease-in-out;
+}
+
+/* حركات عامة وبطاقات */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeInUp 0.35s ease;
+}
+
+.card-soft {
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.card-soft:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.1);
+}
+
+.btn-ghost {
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.btn-ghost:hover {
+  background-color: rgba(13, 110, 253, 0.08);
+  color: #0d6efd;
+  transform: translateY(-1px);
+}
