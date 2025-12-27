@@ -1,131 +1,141 @@
+import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto';
+import multer, { memoryStorage } from 'multer';
+import { fileURLToPath } from 'url';
 import Enrollment from '../models/Enrollment.js';
 import AiChatLog from '../models/AiChatLog.js';
 import CustomError from '../utils/CustomError.js';
 import { asyncErrorHandler } from '../middlewares/errorMiddleware.js';
 import { collectContext, generateChatCompletion } from '../services/aiChat.service.js';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const MAX_MSG_LEN = 800;
+const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024; // 5 MB
+const CHAT_UPLOAD_DIR = path.join(__dirname, '..', 'uploads', 'chat');
+const chatUpload = multer({
+	storage: memoryStorage(),
+	limits: { fileSize: MAX_ATTACHMENT_BYTES, files: 3 },
+});
+
+export const uploadChatAttachments = chatUpload.array('attachments', 3);
+
+const saveAttachments = (files = []) => {
+	if (!files.length) return [];
+	if (!fs.existsSync(CHAT_UPLOAD_DIR)) {
+		fs.mkdirSync(CHAT_UPLOAD_DIR, { recursive: true });
+	}
+
+	const allowedDocs = new Set([
+		'application/pdf',
+		'text/plain',
+		'application/msword',
+		'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+	]);
+
+	return files.map((file) => {
+		const { mimetype, originalname, buffer, size } = file;
+		const isImage = mimetype?.startsWith('image/');
+		const isAllowed = isImage || allowedDocs.has(mimetype);
+		if (!isAllowed) throw new CustomError('Unsupported attachment type.', 400);
+		if (size > MAX_ATTACHMENT_BYTES) throw new CustomError('Attachment too large (max 5MB).', 400);
+
+		const extFromName = path.extname(originalname || '').slice(0, 8);
+		const fallbackExt = isImage
+			? `.${(mimetype || '').split('/')[1] || 'img'}`
+			: `.${(mimetype || '').split('/')[1] || 'bin'}`;
+		const ext = extFromName || fallbackExt;
+
+		const name = `chat-${crypto.randomUUID()}${ext}`;
+		const filePath = path.join(CHAT_UPLOAD_DIR, name);
+		fs.writeFileSync(filePath, buffer);
+
+		return {
+			url: `/uploads/chat/${name}`,
+			originalName: originalname || name,
+			mimeType: mimetype || 'application/octet-stream',
+			size,
+		};
+	});
+};
 
 export const chatWithAi = asyncErrorHandler(async (req, res) => {
-	const started = Date.now();
+	const { message, courseId } = req.body || {};
+	if (!message || !message.trim()) throw new CustomError('message is required.', 400);
+	if (message.length > MAX_MSG_LEN) throw new CustomError('message too long.', 400);
 
-	try {
-		const { message, courseId } = req.body || {};
+	const userId = req.user?._id;
+	const enrollments = await Enrollment.find({ user: userId }).select('course').lean();
+	if (!enrollments.length) throw new CustomError('No enrolled courses.', 403);
 
-		console.log('\n[AI_CHAT_CTRL] ===== Incoming /ai/chat =====');
-		console.log('[AI_CHAT_CTRL] userId:', req.user?._id?.toString?.());
-		console.log('[AI_CHAT_CTRL] courseId:', courseId);
-		console.log('[AI_CHAT_CTRL] messageLen:', message?.length);
-		console.log('[AI_CHAT_CTRL] messagePreview:', (message || '').slice(0, 200));
+	const enrolledCourseIds = enrollments.map((e) => e.course);
 
-		if (!message || !message.trim()) throw new CustomError('message is required.', 400);
-		if (message.length > MAX_MSG_LEN) throw new CustomError('message too long.', 400);
+	if (courseId && !enrolledCourseIds.map(String).includes(String(courseId))) {
+		throw new CustomError('Not enrolled in this course.', 403);
+	}
 
-		const userId = req.user?._id;
-		const enrollments = await Enrollment.find({ user: userId }).select('course').lean();
+	const targetCourses = courseId ? [courseId] : enrolledCourseIds;
 
-		console.log('[AI_CHAT_CTRL] enrollments count:', enrollments.length);
-
-		if (!enrollments.length) throw new CustomError('No enrolled courses.', 403);
-
-		// NOTE: enrollment.course may be ObjectId OR populated course object (depends on your schema/populate)
-		const enrolledCourseItems = enrollments.map((e) => e.course);
-
-		// Validate enrollment if a specific courseId is provided
-		if (courseId) {
-			const enrolledIdsAsString = enrolledCourseItems
-				.map((c) => (c?._id ? String(c._id) : String(c)))
-				.filter(Boolean);
-
-			console.log('[AI_CHAT_CTRL] enrolledIdsAsString:', enrolledIdsAsString);
-
-			if (!enrolledIdsAsString.includes(String(courseId))) {
-				throw new CustomError('Not enrolled in this course.', 403);
-			}
-		}
-
-		const targetCourses = courseId ? [courseId] : enrolledCourseItems;
-
-		console.log('[AI_CHAT_CTRL] targetCourses sample:', targetCourses?.[0]);
-
-		const { contexts, inScope } = await collectContext({
-			courseIds: targetCourses,
-			message,
+	const rawFiles = [];
+	if (req.file) rawFiles.push(req.file);
+	if (Array.isArray(req.files)) rawFiles.push(...req.files);
+	if (req.files && !Array.isArray(req.files) && typeof req.files === 'object') {
+		Object.values(req.files).forEach((group) => {
+			if (Array.isArray(group)) rawFiles.push(...group);
 		});
+	}
+	const attachments = saveAttachments(rawFiles);
 
-		console.log('[AI_CHAT_CTRL] inScope:', inScope);
-		console.log('[AI_CHAT_CTRL] contexts count:', contexts?.length || 0);
-		console.log(
-			'[AI_CHAT_CTRL] contexts titles:',
-			(contexts || []).map((c) => c.lessonTitle).slice(0, 6),
-		);
+	const hostPrefix = `${req.protocol}://${req.get('host') || ''}`.replace(/\/$/, '');
+	const attachmentsSummary = attachments
+		.map((a) => {
+			const sizeKb = Math.max(1, Math.round(a.size / 1024));
+			return `${a.originalName} (${a.mimeType}, ${sizeKb}KB) - ${hostPrefix}${a.url}`;
+		})
+		.join('\n');
 
-		if (!inScope) {
-			await AiChatLog.create({
-				user: userId,
-				role: 'student',
-				message,
-				inScope: false,
-				citations: [],
-			});
-			const durationMs = Date.now() - started;
-			console.log('[AI_CHAT_CTRL] ✅ done (out of scope) in', durationMs, 'ms');
-			return res.status(200).json({ inScope: false, answer: null, citations: [] });
-		}
+	const messageForModel = attachmentsSummary
+		? `${message}\n\n[User attachments]\n${attachmentsSummary}`
+		: message;
 
-		let result;
-		try {
-			result = await generateChatCompletion({ message, contexts });
-		} catch (err) {
-			// IMPORTANT: return 200 with error details so you can see the root cause
-			console.error('[AI_CHAT_ERROR] ❌ generateChatCompletion failed:', err);
-			console.error('[AI_CHAT_ERROR] message:', err?.message);
-			console.error('[AI_CHAT_ERROR] stack:', err?.stack);
+	const { contexts, inScope } = await collectContext({
+		courseIds: targetCourses,
+		message,
+	});
 
-			const durationMs = Date.now() - started;
-
-			return res.status(200).json({
-				inScope: false,
-				answer: 'تعذر الحصول على إجابة الآن. يرجى المحاولة لاحقاً.',
-				citations: [],
-				error: err?.message || String(err),
-				stack: err?.stack || null,
-				durationMs,
-			});
-		}
-
+	if (!inScope) {
 		await AiChatLog.create({
 			user: userId,
 			role: 'student',
 			message,
-			answer: result.answer,
-			inScope: result.inScope,
-			citations: (result.citations || []).map((c) => ({
-				lesson: c.lessonId,
-				course: c.courseId,
-				lessonTitle: c.lessonTitle,
-				courseTitle: c.courseTitle,
-			})),
-			model: result.model,
-			tokensApprox: result.tokensApprox,
-			durationMs: result.durationMs,
+			attachments,
+			inScope: false,
+			citations: [],
 		});
-
-		const durationMs = Date.now() - started;
-		console.log('[AI_CHAT_CTRL] ✅ done in', durationMs, 'ms');
-		console.log('[AI_CHAT_CTRL] model:', result.model);
-		console.log('[AI_CHAT_CTRL] answerLen:', result.answer?.length);
-
-		return res.status(200).json({
-			inScope: result.inScope,
-			answer: result.answer,
-			citations: result.citations,
-			model: result.model,
-			durationMs,
-		});
-	} catch (err) {
-		// Let your global error middleware handle it, but log first
-		console.error('[AI_CHAT_CTRL_FATAL] ❌', err);
-		throw err;
+		return res.json({ inScope: false, answer: null, citations: [], attachments });
 	}
+
+	const result = await generateChatCompletion({ message: messageForModel, contexts });
+
+	await AiChatLog.create({
+		user: userId,
+		role: 'student',
+		message,
+		attachments,
+		answer: result.answer,
+		inScope: result.inScope,
+		citations: result.citations,
+		model: result.model,
+		tokensApprox: result.tokensApprox,
+		durationMs: result.durationMs,
+	});
+
+	return res.json({
+		inScope: result.inScope,
+		answer: result.answer,
+		citations: result.citations,
+		attachments,
+	});
 });

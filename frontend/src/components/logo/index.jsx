@@ -10,7 +10,7 @@ export const Logo = () => {
   return (
     <>
       <Link to={PATH.Main}>
-        <ImgLogo src="/assets/img/learning.png" alt="Logo" />
+        <ImgLogo src="assets/img/learning.png" alt="Logo" />
       </Link>
     </>
   );

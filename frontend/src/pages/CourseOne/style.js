@@ -189,6 +189,74 @@ export const ReviewSection = styled.div`
   }
 `
 
+export const LessonContentCard = styled.div`
+  background: ${({ theme }) => theme.background_secondary || "white"};
+  border-radius: 14px;
+  padding: 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  border: 1px solid ${({ theme }) => theme.border || "#e1e8ed"};
+  margin-bottom: 24px;
+  display: grid;
+  gap: 16px;
+`
+
+export const LessonDescription = styled.p`
+  margin: 0;
+  color: ${({ theme }) => theme.color || "#2c3e50"};
+  line-height: 1.7;
+  white-space: pre-line;
+`
+
+export const PdfViewer = styled.div`
+  border: 1px dashed ${({ theme }) => theme.border || "#d1d5db"};
+  border-radius: 10px;
+  overflow: hidden;
+  background: #f8fafc;
+
+  iframe {
+    width: 100%;
+    height: 480px;
+    border: none;
+
+    @media (max-width: 768px) {
+      height: 360px;
+    }
+  }
+`
+
+export const PdfActions = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+
+  a,
+  button {
+    background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+    color: #fff;
+    border: none;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 6px 18px rgba(99, 102, 241, 0.25);
+
+    &:hover {
+      transform: translateY(-1px);
+    }
+  }
+
+  .meta {
+    color: ${({ theme }) => theme.color || "#6b7280"};
+    font-size: 14px;
+  }
+`
+
 export const NoContentWrapper = styled.div`
   display: flex;
   justify-content: center;

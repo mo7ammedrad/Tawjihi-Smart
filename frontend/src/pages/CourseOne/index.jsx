@@ -46,15 +46,31 @@ const CourseOne = () => {
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [dataLoading, setDataLoading] = useState(false);
 
-  const userData = JSON.parse(localStorage.getItem("user"));
+  let userData = null;
+  try {
+    userData = JSON.parse(localStorage.getItem("user"));
+  } catch {
+    userData = null;
+  }
   const userId = userData?._id;
+  const isPrivileged = userData?.role === "admin" || userData?.role === "teacher";
 
   const { name, id: courseId } = useParams();
   const navigate = useNavigate();
 
-  const isEnrolled = enrollmentCourses.some(
-    (enrolled) => enrolled?.course._id === courseId
-  );
+  const isEnrolled =
+    Array.isArray(enrollmentCourses) &&
+    enrollmentCourses.some((enrolled) => {
+      const courseRef = enrolled?.course;
+      const courseRefId =
+        typeof courseRef === "string" ? courseRef : courseRef?._id;
+      return courseRefId === courseId;
+    });
+  const isCourseOwner =
+    isPrivileged &&
+    thisCourse?.teacher &&
+    (thisCourse.teacher._id === userId || thisCourse.teacher === userId);
+  const canAccessLessons = isEnrolled || isCourseOwner;
 
   useEffect(() => {
     // if (!userId) return;
@@ -82,15 +98,19 @@ const CourseOne = () => {
           setLessons(lessonsRes.data.data.docs.reverse());
         }
 
-        // Get enrollments
-        const enrollmentsRes = await axios.get(
-          `${API_URL}/enrollments?user=${userId}`,
-          {
-            withCredentials: true,
+        // Get enrollments (only if logged in)
+        if (userId) {
+          const enrollmentsRes = await axios.get(
+            `${API_URL}/enrollments?user=${userId}`,
+            {
+              withCredentials: true,
+            }
+          );
+          if (enrollmentsRes) {
+            setEnrollmentCourses(enrollmentsRes.data.data.docs || []);
           }
-        );
-        if (enrollmentsRes) {
-          setEnrollmentCourses(enrollmentsRes.data.data.docs);
+        } else {
+          setEnrollmentCourses([]);
         }
       } catch (e) {
         console.error("Error fetching course or enrollment data:", e);
@@ -103,7 +123,7 @@ const CourseOne = () => {
   }, [courseId, userId]);
 
   const handleSelect = (item, index) => {
-    if (isEnrolled) {
+    if (canAccessLessons) {
       setSelectedIndex(index);
       navigate(`/courses/${name}/${courseId}/video/${index}`, {
         state: { items: lessons },
@@ -183,7 +203,7 @@ const CourseOne = () => {
             </div>
 
             <StartButtonWrapper>
-              {isEnrolled ? (
+              {canAccessLessons ? (
                 <Button variant="contained" color="primary" onClick={() => handleSelect(null, 0)}>
                   ابدأ الدورة الآن
                 </Button>

@@ -12,6 +12,16 @@ const citationSchema = new Schema(
 	{ _id: false },
 );
 
+const attachmentSchema = new Schema(
+	{
+		url: { type: String, trim: true },
+		originalName: { type: String, trim: true },
+		mimeType: { type: String, trim: true },
+		size: { type: Number },
+	},
+	{ _id: false },
+);
+
 const aiChatLogSchema = new Schema(
 	{
 		user: { type: Types.ObjectId, ref: 'User', required: true },
@@ -20,6 +30,7 @@ const aiChatLogSchema = new Schema(
 		answer: { type: String, default: '' },
 		inScope: { type: Boolean, default: true },
 		citations: { type: [citationSchema], default: [] },
+		attachments: { type: [attachmentSchema], default: [] },
 		model: { type: String, default: '' },
 		tokensApprox: { type: Number, default: 0 },
 		durationMs: { type: Number, default: 0 },

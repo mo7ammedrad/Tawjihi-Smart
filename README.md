@@ -1,203 +1,101 @@
-# Tawjihi - Online Learning and Course Management Platform
+# Tawjihi Platform
 
-**Tawjihi** is a comprehensive, full-stack web platform designed for delivering interactive online education based on the **Tawjihi curriculum**. Built with the **MERN** stack (MongoDB, Express.js, React.js, Node.js), the system empowers **students**, **teachers**, and **administrators** to engage in modern digital learning through structured courses, rich lessons, secure payments, and user-friendly dashboards.
+منصّة تعليميّة كاملة مبنية على MERN (MongoDB, Express, React, Node) لتقديم دروس التوجيهي إلكترونياً مع أدوار للطلاب، المعلّمين، والمدراء، ودعم دفع آمن، وإدارة محتوى، إضافة إلى شات مساعد دراسي مدعوم بالذكاء الاصطناعي.
 
----
+## المزايا الرئيسية
+- مصادقة وصلاحيات: تسجيل دخول أدوار (طالب، معلّم، مدير) مع JWT و OAuth (Google/Facebook).
+- إدارة المقررات والدروس: فيديوهات، ملفات، موارد إضافية، تقييمات وتعليقات.
+- متجر ودفع: سلة مشتريات، Wishlist، دفع عبر Stripe.
+- ملفات وميديا: رفع إلى Cloudinary مع تحكّم بالأنواع والأحجام.
+- شات AI للطلاب: نطاق الإجابات ضمن المقررات المسجَّل فيها الطالب، يدعم مرفقات (صور/ملفات) مع الرسالة.
 
-## 🎯 Target Audience
+## المتطلبات
+- Node.js 18+
+- MongoDB
+- حساب Cloudinary
+- مفاتيح Stripe (للدفع)
 
-- **Students**: Browse and enroll in courses, watch video lessons, download materials, and track progress.
-- **Teachers**: Create and manage courses, upload videos/documents, interact with students ,generator qouzi ai.
-- **Administrators**: Oversee users, content, payments, and platform-wide settings,quzi ai ,.
-
----
-
-## 🌟 Key Features
-
-- 🔐 **Authentication & Authorization**: Role-based login for admins, teachers, and students using JWT and OAuth (Google & Facebook).
-- 📚 **Course Management**:
-  - Teachers can create, edit, and manage their own courses.
-  - Students can browse by category, subject, or teacher.
-- 🎬 **Lesson Delivery**: Each course includes structured lessons with videos, resources, and external links.
-- 🛒 **Cart & Wishlist**: Add courses to shopping cart or wishlist for later.
-- 💳 **Payment System**: Stripe integration for secure checkout.
-- 📝 **Comments & Reviews**: Students can leave feedback and rate courses.
-- 👨‍🏫 **Teacher Profiles**: View teacher bios, reviews, and associated courses.
-- 📰 **News & Updates**: Section for platform-wide announcements and education-related news.
-- 📱 **Responsive UI**: Works seamlessly across desktop, tablet, and mobile devices.
-- ☁️ **Cloudinary Integration**: For uploading and managing media files.
-
----
-
-## ⚙️ Tech Stack
-
-### 🔧 Backend
-
-- Node.js, Express.js
-- MongoDB + Mongoose
-- Passport.js, JWT, OAuth2
-- Cloudinary, Stripe, Multer
-
-### 🎨 Frontend
-
-- React.js
-- Styled Components
-- CoreUI React Dashboard
-- Lottie, Lucide Icons
-
-### 📦 Other Libraries
-
-- `bcryptjs` – Password encryption
-- `validator` – Input validation
-- `nodemailer` – Email delivery
-
----
-
-## 🛠️ Installation
-
-### 📋 Prerequisites
-
-- [Node.js](https://nodejs.org/) (v18+ recommended)
-- [MongoDB](https://www.mongodb.com/)
-- [Git](https://git-scm.com/)
-- [Cloudinary](https://cloudinary.com/)
-- [Stripe](https://stripe.com/)
-
----
-
-### 🚀 Getting Started
-
-#### 1. Clone the Repository
-
-```bash
-git clone https://github.com/ziadMorjan/Tawjihi.git
-cd Tawjihi
-```
-
-#### 2. Backend Setup
-
+## الإعداد السريع
+### 1) Backend
 ```bash
 cd backend
 npm install
-cp config-lock.env config.env
-```
-
-> Update `config.env` with your environment variables:
-
-```env
-# Environment
-NODE_ENV=development
-PORT=5000
-BASE_URL=http://localhost:5000
-
-# MongoDB
-DB_URI=your_mongo_uri
-DB_NAME=your_db_name
-
-# JWT
-JWT_SECRET=your_jwt_secret
-JWT_EXPIRED=30d
-
-# Frontend
-FRONTEND_URL=http://localhost:3000
-
-# OAuth
-GOOGLE_CLIENT_ID=your_google_id
-GOOGLE_CLIENT_SECRET=your_google_secret
-FACEBOOK_CLIENT_ID=your_facebook_id
-FACEBOOK_CLIENT_SECRET=your_facebook_secret
-
-# Email
-HOST_EMAIL=your_email_host
-PORT_EMAIL=your_email_port
-USER_EMAIL=your_email_user
-PASS_EMAIL=your_email_password
-
-# Stripe
-STRIPE_SECRET_KEY=your_stripe_key
-STRIPE_WEBHOOK_SECRET=your_webhook_secret
-
-# Cloudinary
-CLOUDINARY_CLOUD_NAME=your_cloud_name
-CLOUDINARY_API_KEY=your_api_key
-CLOUDINARY_API_SECRET=your_api_secret
-```
-
-#### 3. Frontend Setup
-
-```bash
-cd ../frontend
-npm install
-```
-
----
-
-## ▶️ Running the App
-
-Start backend server:
-
-```bash
-cd ../backend
+cp config-lock.env config.env   # أو انسخ الإعدادات المناسبة
 npm run dev
 ```
+أهم متغيرات البيئة في `config.env`:
+```env
+PORT=5000
+DB_URI=your_mongo_uri
+JWT_SECRET=your_jwt_secret
+FRONTEND_URL=http://localhost:3000
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+FACEBOOK_CLIENT_ID=...
+FACEBOOK_CLIENT_SECRET=...
+STRIPE_SECRET_KEY=...
+STRIPE_WEBHOOK_SECRET=...
+CLOUDINARY_CLOUD_NAME=...
+CLOUDINARY_API_KEY=...
+CLOUDINARY_API_SECRET=...
 
-Start frontend server:
+# إعدادات الشات (اختياري لضبط السرعة والدقة)
+AI_MAX_CONTEXT_CHARS=400
+AI_MAX_LESSONS=1
+OLLAMA_BASE_URL=http://127.0.0.1:11435
+OLLAMA_MODEL=mistral:7b
+```
 
+### 2) Frontend
 ```bash
-cd ../frontend
+cd frontend
+npm install
 npm start
 ```
+الواجهة ستعمل على `http://localhost:3000`.
 
-Visit: [http://localhost:3000](http://localhost:3000)
+## دليل شات المساعد الدراسي (AI Chat)
+- الظهور: زر عائم أسفل يمين الواجهة للطلاب (role=user). التصميم داكن بتدرجات زرقاء وشارة “متصل الآن”.
+- النطاق: المساعد يجيب فقط من مواد الطالب. تظهر شارة توضيح داخل المحادثة.
+- المرفقات: يمكن رفع حتى 3 ملفات (صور أو pdf/doc/docx/txt) بحجم 5MB لكل ملف. تُحفظ مؤقتاً في `backend/uploads/chat` وتظهر روابطها في الرسائل.
+- التخزين: كل محادثة تخزَّن في `AiChatLog` مع المرفقات والاستشهادات.
+- السرعة: تم تقليص `MAX_CONTEXT_CHARS` إلى 400 و `MAX_LESSONS` إلى 1 وتعطيل تحليل PDF في الاسترجاع لتسريع الرد. يمكن تعديل القيم عبر متغيرات البيئة حسب الحاجة.
 
----
-
-## 🧪 Seed Dummy Data (Optional)
-
-```bash
-cd backend/utils/dummyData
-
-# To clear existing data
-node seeder.js -d
-
-# To insert sample data
-node seeder.js -i
+### نقطة النهاية
+- `POST /api/v1/ai/chat`
+- الطلب: `multipart/form-data`
+  - `message`: نص (مطلوب إذا لا توجد ملفات)
+  - `attachments`: حتى 3 ملفات
+- الاستجابة النموذجية:
+```json
+{
+  "inScope": true,
+  "answer": "النص",
+  "citations": [
+    {"lessonTitle": "...", "courseTitle": "...", "lessonId": "...", "courseId": "..."}
+  ],
+  "attachments": [
+    {"url": "/uploads/chat/..", "originalName": "...", "mimeType": "...", "size": 1234}
+  ]
+}
 ```
+الحماية: `protect` + `allowedTo('user')` مع معدل محدود `aiChatRateLimit`.
 
----
+## نصائح الأداء
+- استخدم نموذج خفيف وسريع (`OLLAMA_MODEL`)، واحفظ `AI_MAX_CONTEXT_CHARS` صغيراً.
+- أوقف تحليل PDF (مُعطّل حالياً) أو فعّله عند الحاجة لدقة أعلى.
+- فعّل الضغط HTTP/2 أو Gzip على الخادم لتحسين النقل.
 
-## 📬 API Documentation
+## مسارات مهمة في الكود
+- Frontend Chat UI: `frontend/src/components/AiChatWidget/index.jsx`
+- AI Chat Controller: `backend/controllers/AiChatController.js`
+- AI Service (سياق ونموذج): `backend/services/aiChat.service.js`
+- سجل المحادثات: `backend/models/AiChatLog.js`
 
-Use the Postman collection to test APIs:
+## أوامر مفيدة
+- تشغيل الخادم الخلفي: `cd backend && npm run dev`
+- تشغيل الواجهة: `cd frontend && npm start`
+- تهيئة بيانات تجريبية: `cd backend/utils/dummyData && node seeder.js -i`
 
-[🔗 Tawjihi API on Postman](https://lively-capsule-44952.postman.co/workspace/APIs~7f9a2d9f-44a8-4923-a28c-aa5ceddac228/collection/40896646-d0bf1d05-8fc6-4fcc-b200-92e506a8d974)
-
----
-
-## 📚 Usage Flow
-
-1. Register or login (via form or Google)
-2. Browse available courses
-3. Add to cart or wishlist
-4. Checkout using Stripe
-5. Watch lessons, download materials
-6. Leave comments or reviews
-
----
-
-## 👥 Contributors
-
-- Mohammed eldabous
-jamal abo deghaim
----
-
-## 📄 License
-
-Licensed under the [MIT License](LICENSE).
-
----
-
-## 🙏 Acknowledgments
-
-- All educators supporting open education
-- Open-source tools & library maintainers
+## الترخيص
+MIT License.

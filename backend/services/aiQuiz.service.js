@@ -1,9 +1,10 @@
 /* eslint-disable func-style */
 import crypto from 'crypto';
+import fetch from 'node-fetch';
 
+// Ollama (مفعّل للاختبارات)
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434';
-// Default to mistral to match local Ollama install; override via env var for other models
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'mistral';
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'phi3:mini';
 
 /**
  * Safely parse JSON without throwing. Returns null on failure.
@@ -300,10 +301,6 @@ export async function generateQuiz({
 			);
 		}
 
-		// ✅ FIX: Ollama-compatible servers (like our Colab FastAPI) may return JSON:
-		// { "response": "<model_text>" }
-		// Your old code was doing res.text() then extracting JSON from the wrapper,
-		// which yields {} and fails validation. So we unwrap `response` if present.
 		const raw = await res.text();
 
 		let parsed;

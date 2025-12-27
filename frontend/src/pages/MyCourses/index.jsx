@@ -30,6 +30,10 @@ const MyCourses = () => {
 
   useEffect(() => {
     const getData = async () => {
+      if (!userId) {
+        setMyCourses([]);
+        return;
+      }
       try {
         setIsLoading(true);
         // If Stripe redirected with a session_id, try to confirm the session on the server
@@ -82,22 +86,31 @@ const MyCourses = () => {
             <p style={{ textAlign: "center", width: "100%" }}>لا توجد عناصر.</p>
             
           ) : (
-            myCourses?.map((item) => (
-              <CourseCard
-                key={item.course._id}
-                item={item.course}
-                id={item.course._id}
-                imgSrc={item.course.img || "/assets/img/logo.png"}
-                name={item.course.name}
-                starIcon={item.course.averageRating}
-                price={item.course.price}
-                priceAfterDiscount={item.course.priceAfterDiscount}
-                teacherName={item.course.teacher?.name}
-                teacherImg={item.course.teacher?.img || "/assets/img/logo.png"}
-                branch={item.course.branches.map((b) => b.name).join(" | ")}
-                subject={item.course.subject?.name}
-              />
-            ))
+            (myCourses || [])
+              .filter((item) => item?.course)
+              .map((item) => {
+                const { course } = item;
+                const branches = course?.branches?.length
+                  ? course.branches.map((b) => b?.name).filter(Boolean).join(" | ")
+                  : "";
+
+                return (
+                  <CourseCard
+                    key={course._id || item._id}
+                    item={course}
+                    id={course._id || item._id}
+                    imgSrc={course?.img || "/assets/img/logo.png"}
+                    name={course?.name || "Course"}
+                    starIcon={course?.averageRating}
+                    price={course?.price}
+                    priceAfterDiscount={course?.priceAfterDiscount}
+                    teacherName={course?.teacher?.name}
+                    teacherImg={course?.teacher?.img || "/assets/img/logo.png"}
+                    branch={branches}
+                    subject={course?.subject?.name}
+                  />
+                );
+              })
           )
           }
 

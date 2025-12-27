@@ -45,6 +45,8 @@ const uploadsPath = path.join(process.cwd(), 'uploads');
 app.use(express.static(uploadsPath));
 // دعم المسار القديم تحت /api/v1/uploads لتفادي 404 للروابط القديمة
 app.use('/api/v1/uploads', express.static(uploadsPath));
+// إضافة مسار صريح /uploads حتى لا يبحث عن مجلد uploads داخل uploads
+app.use('/uploads', express.static(uploadsPath));
 app.use(passport.initialize());
 
 // Mount routes

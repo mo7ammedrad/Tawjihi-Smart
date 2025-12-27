@@ -28,6 +28,9 @@ import {
   VideoCounter,
   EnrollmentMessage,
   NoContentWrapper,
+  LessonContentCard,
+  LessonDescription,
+  PdfActions,
 } from "./style"
 import NoVideos from "../../components/NoVideos"
 import { API_URL } from "../../config"
@@ -42,6 +45,11 @@ const VideoPage = () => {
   const [isloading, setIsloading] = useState(false)
   const [quizzes, setQuizzes] = useState([])
   const [quizError, setQuizError] = useState("")
+  const [selfQuizQuestions, setSelfQuizQuestions] = useState([])
+  const [selfQuizLoading, setSelfQuizLoading] = useState(false)
+  const [selfQuizError, setSelfQuizError] = useState("")
+  const [selfQuizCount, setSelfQuizCount] = useState(10)
+  const [selfQuizResponses, setSelfQuizResponses] = useState({})
 
   const { name, id, videoIndex } = useParams()
   const navigate = useNavigate()
@@ -50,6 +58,14 @@ const VideoPage = () => {
   const items = Array.isArray(state?.items) ? state.items : []
   const currentIndex = Number(videoIndex) >= 0 && items[videoIndex] ? Number(videoIndex) : 0
   const selectedVideo = items[currentIndex] || {}
+  const userData = JSON.parse(localStorage.getItem("user"))
+  const isPrivileged = userData?.role === "admin" || userData?.role === "teacher"
+  const isCourseOwner =
+    isPrivileged &&
+    (selectedVideo?.teacher?._id === userData?._id ||
+      selectedVideo?.teacher === userData?._id ||
+      selectedVideo?.course?.teacher?._id === userData?._id ||
+      selectedVideo?.course?.teacher === userData?._id)
 
 
   const handleVideoSelect = (item, index) => {
@@ -105,6 +121,7 @@ const VideoPage = () => {
 
   // check if the user is enrolled in the course
   const isEnrolled = enrollmentCourses.some((enrolled) => enrolled?.course._id === id)
+  const canView = isEnrolled || isCourseOwner
 
   useEffect(() => {
     const fetchQuiz = async () => {
@@ -127,7 +144,57 @@ const VideoPage = () => {
     fetchQuiz()
   }, [selectedVideo?._id, id, isEnrolled])
 
+  // reset self-quiz when lesson changes
+  useEffect(() => {
+    setSelfQuizQuestions([])
+    setSelfQuizError("")
+    setSelfQuizLoading(false)
+    setSelfQuizResponses({})
+  }, [selectedVideo?._id])
+
   const quizToShow = useMemo(() => (quizzes && quizzes.length ? quizzes[0] : null), [quizzes])
+  const pdfUrl = useMemo(() => {
+    if (selectedVideo?.pdfUrl) return selectedVideo.pdfUrl
+    if (Array.isArray(selectedVideo?.resources)) {
+      return selectedVideo.resources.find(
+        (r) => typeof r === "string" && r.toLowerCase().trim().endsWith(".pdf")
+      )
+    }
+    return null
+  }, [selectedVideo])
+  const resolvedPdfUrl = useMemo(() => {
+    if (!pdfUrl) return null
+    if (pdfUrl.startsWith("/")) {
+      const apiBase = API_URL.replace(/\/api\/v1$/, "")
+      return `${apiBase}${pdfUrl}`
+    }
+    return pdfUrl
+  }, [pdfUrl])
+
+  const handleGenerateSelfQuiz = async () => {
+    if (!selectedVideo?._id) return
+    try {
+      setSelfQuizLoading(true)
+      setSelfQuizError("")
+      setSelfQuizQuestions([])
+      setSelfQuizResponses({})
+      const res = await axios.post(
+        `${API_URL}/ai/quiz/self`,
+        { courseId: id, lessonId: selectedVideo._id, nQuestions: selfQuizCount },
+        { withCredentials: true }
+      )
+      setSelfQuizQuestions(res.data?.questions || [])
+    } catch (e) {
+      const msg =
+        e?.response?.data?.message ||
+        e?.response?.data?.error ||
+        e?.message ||
+        "تعذر توليد الاختبار حالياً."
+      setSelfQuizError(msg)
+    } finally {
+      setSelfQuizLoading(false)
+    }
+  }
 
   if (isloading) {
     return (
@@ -139,7 +206,7 @@ const VideoPage = () => {
     )
   }
 
-  if (!isEnrolled) {
+  if (!canView) {
     return (
       <>
         <LogoAndButton />
@@ -232,6 +299,147 @@ const VideoPage = () => {
           </VideoWrapper>
         </VideoContent>
 
+        {(selectedVideo?.description || pdfUrl) && (
+          <LessonContentCard>
+            <SectionTitle>محتوى الدرس</SectionTitle>
+            {selectedVideo?.description && (
+              <LessonDescription>{selectedVideo.description}</LessonDescription>
+            )}
+
+            {resolvedPdfUrl && (
+              <>
+                <PdfActions>
+                  <span className="meta">يمكنك تحميل ملف الـ PDF المرفق.</span>
+                  <a href={resolvedPdfUrl} target="_blank" rel="noreferrer" download>
+                    📄 تحميل PDF
+                  </a>
+                </PdfActions>
+              </>
+            )}
+          </LessonContentCard>
+        )}
+
+        {canView && (
+          <LessonContentCard style={{ display: "grid", gap: 12 }}>
+            <SectionTitle>اختبر نفسك (Quiz AI)</SectionTitle>
+            <p style={{ margin: 0, color: "#4b5563" }}>
+              اضغط لتوليد اختبار ذاتي مبني على هذا الدرس بالذكاء الاصطناعي  (اختيار من متعدد + صح/خطأ).
+            </p>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <label style={{ color: "#4b5563", fontWeight: 600 }}>
+                عدد الأسئلة:
+                <input
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={selfQuizCount}
+                  onChange={(e) => setSelfQuizCount(Number(e.target.value))}
+                  style={{
+                    marginInlineStart: 8,
+                    padding: "6px 10px",
+                    borderRadius: 8,
+                    border: "1px solid #e5e7eb",
+                    width: 80,
+                  }}
+                />
+              </label>
+            </div>
+            <div>
+              <button
+                type="button"
+                onClick={handleGenerateSelfQuiz}
+                disabled={selfQuizLoading}
+                style={{
+                  background: selfQuizLoading
+                    ? "linear-gradient(135deg, #9ca3af 0%, #9ca3af 100%)"
+                    : "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
+                  color: "#fff",
+                  border: "none",
+                  padding: "10px 16px",
+                  borderRadius: "10px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  boxShadow: "0 8px 20px rgba(99, 102, 241, 0.25)",
+                }}
+              >
+                {selfQuizLoading ? "جاري التوليد..." : "🚀 توليد اختبار ذاتي"}
+              </button>
+            </div>
+            {selfQuizError && <div style={{ color: "#dc2626", fontWeight: 600 }}>{selfQuizError}</div>}
+            {selfQuizQuestions.length > 0 && (
+              <div style={{ display: "grid", gap: 10, marginTop: 8 }}>
+                {selfQuizQuestions.map((q, idx) => (
+                  <div
+                    key={idx}
+                    style={{ border: "1px solid #e5e7eb", borderRadius: 10, padding: 12, background: "#f8fafc" }}
+                  >
+                    <div style={{ fontWeight: 700, marginBottom: 6 }}>سؤال {idx + 1}</div>
+                    <div style={{ marginBottom: 6 }}>{q.question}</div>
+                    {q.options && q.options.length > 0 && (
+                      <div style={{ display: "grid", gap: 8 }}>
+                        {q.options.map((opt, oi) => {
+                          const key = `${idx}-${oi}`
+                          const answered = selfQuizResponses[idx]
+                          const isCorrect = answered?.selected === opt && answered?.correct
+                          const isWrong = answered?.selected === opt && !answered?.correct
+                          return (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={() => {
+                                const correct = String(q.correctAnswer || q.answer || "").trim()
+                                const selected = String(opt || "").trim()
+                                setSelfQuizResponses((prev) => ({
+                                  ...prev,
+                                  [idx]: {
+                                    selected,
+                                    correct: selected === correct,
+                                    correctAnswer: correct,
+                                  },
+                                }))
+                              }}
+                              disabled={!!selfQuizResponses[idx]}
+                              style={{
+                                textAlign: "left",
+                                padding: "10px 12px",
+                                borderRadius: 8,
+                                border: isCorrect
+                                  ? "2px solid #16a34a"
+                                  : isWrong
+                                  ? "2px solid #dc2626"
+                                  : "1px solid #e5e7eb",
+                                background: isCorrect
+                                  ? "#ecfdf3"
+                                  : isWrong
+                                  ? "#fef2f2"
+                                  : "#fff",
+                                cursor: selfQuizResponses[idx] ? "not-allowed" : "pointer",
+                              }}
+                            >
+                              {opt}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                    {selfQuizResponses[idx] && (
+                      <div style={{ marginTop: 6, fontWeight: 600 }}>
+                        {selfQuizResponses[idx].correct ? (
+                          <span style={{ color: "#16a34a" }}>الإجابة صحيحة 🎉</span>
+                        ) : (
+                          <span style={{ color: "#dc2626" }}>
+                            إجابة خاطئة. الصحيح: {selfQuizResponses[idx].correctAnswer || "—"}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </LessonContentCard>
+        )}
+
         <ReviewSection>
           <SectionTitle>التعليقات والمراجعات</SectionTitle>
           <ReviewListSection lessonId={selectedVideo._id} from={'videoPage'} />
@@ -241,7 +449,7 @@ const VideoPage = () => {
             />
         </ReviewSection>
 
-        {isEnrolled && (
+        {canView && (
           <ReviewSection style={{ marginTop: "24px" }} id="lesson-quiz">
             <SectionTitle>اختبار الدرس</SectionTitle>
             {!quizToShow && <div style={{ color: "#6c757d" }}>{quizError || "لا يوجد اختبار منشور بعد."}</div>}

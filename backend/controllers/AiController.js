@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import Quiz from '../models/Quiz.js';
 import Lesson from '../models/Lesson.js';
 import Course from '../models/Course.js';
+import Enrollment from '../models/Enrollment.js';
 import CustomError from '../utils/CustomError.js';
 import { asyncErrorHandler } from '../middlewares/errorMiddleware.js';
 import { generateQuiz } from '../services/aiQuiz.service.js';
@@ -160,5 +161,110 @@ export const generateAiQuiz = asyncErrorHandler(async (req, res) => {
 		quizId: quizDoc._id,
 		questions: quizDoc.questions,
 		reused: false,
+	});
+});
+
+// Student self-practice quiz (does not save to DB)
+export const generateSelfPracticeQuiz = asyncErrorHandler(async (req, res) => {
+	const { courseId, lessonId, nQuestions: requestedN, distribution: distInput } = req.body;
+
+	if (!courseId || !lessonId) {
+		throw new CustomError('courseId and lessonId are required.', 400);
+	}
+
+	const lesson = await Lesson.findById(lessonId).lean();
+	if (!lesson || String(lesson.course) !== String(courseId)) {
+		throw new CustomError('Lesson not found for the given course.', 404);
+	}
+
+	const course = await Course.findById(courseId).lean();
+	if (!course) {
+		throw new CustomError('Course not found.', 404);
+	}
+
+	// AuthZ: allow
+	// - student enrolled in course
+	// - teacher who owns the course
+	// - admin
+	const role = req.user?.role;
+	const isAdmin = role === 'admin';
+	const isCourseTeacher =
+		role === 'teacher' &&
+		course.teacher &&
+		String(course.teacher) === String(req.user?._id);
+
+	if (!isAdmin && !isCourseTeacher) {
+		const enrollment = await Enrollment.findOne({
+			course: courseId,
+			user: req.user?._id,
+		}).lean();
+		if (!enrollment) throw new CustomError('غير مسجل في هذه الدورة.', 403);
+	}
+
+	const contentParts = [];
+	const pdfUrl =
+		lesson.pdfUrl ||
+		(lesson.resources || []).find(
+			(r) => typeof r === 'string' && r.toLowerCase().endsWith('.pdf'),
+		);
+	if (pdfUrl) {
+		try {
+			let buffer;
+			if (pdfUrl.startsWith('http')) {
+				const fetchRes = await fetch(pdfUrl);
+				if (!fetchRes.ok) throw new Error(`fetch failed ${fetchRes.status}`);
+				const arr = await fetchRes.arrayBuffer();
+				buffer = Buffer.from(arr);
+			} else {
+				const pdfPath = path.join(process.cwd(), pdfUrl.replace(/^\//, ''));
+				buffer = fs.readFileSync(pdfPath);
+			}
+			const parsed = await pdfParse(buffer);
+			if (parsed.text) contentParts.push(parsed.text);
+		} catch (e) {
+			console.error('[PDF_PARSE_ERROR_SELF]', e.message);
+		}
+	}
+
+	if (lesson.contentText) contentParts.push(String(lesson.contentText));
+	if (lesson.description) contentParts.push(String(lesson.description));
+
+	let content = contentParts.join('\n').trim();
+	if (!content) throw new CustomError('Lesson content is empty.', 400);
+	if (content.length > MAX_TEXT_LEN) {
+		content = content.slice(0, MAX_TEXT_LEN);
+	}
+
+	// Resolve question count and distribution
+	const nQuestions = Math.max(1, Math.min(Number(requestedN) || 10, 20)); // clamp 1..20
+	const resolvedDistribution = {
+		mcq: Number(distInput?.mcq ?? Math.round(nQuestions * 0.6)),
+		true_false: Number(distInput?.true_false ?? Math.round(nQuestions * 0.4)),
+		fill_blank: 0,
+		short_answer: 0,
+	};
+	const totalRequested =
+		(resolvedDistribution.mcq || 0) +
+		(resolvedDistribution.true_false || 0) +
+		(resolvedDistribution.fill_blank || 0) +
+		(resolvedDistribution.short_answer || 0);
+	if (totalRequested !== nQuestions) {
+		// Normalize: adjust MCQ to hit total
+		resolvedDistribution.mcq += nQuestions - totalRequested;
+	}
+
+	const quizData = await generateQuiz({
+		lessonText: content,
+		numQuestions: nQuestions,
+		difficulty: 'medium',
+		language: 'Arabic',
+		distribution: resolvedDistribution,
+		lessonTitle: lesson.name || lesson.title || '',
+		courseTitle: course.name || course.title || '',
+	});
+
+	return res.json({
+		questions: quizData.questions || [],
+		total: quizData.questions?.length || 0,
 	});
 });
